@@ -19,7 +19,7 @@ _CKPT_UNET       = os.path.join(_CKPT_DIR, "unet.pth")
 def _load_state_dict(path: str, device: torch.device) -> dict:
     """Load a checkpoint that is either a plain state_dict or a dict
     containing a 'state_dict' key (as saved by train_checkpoints.py)."""
-    ckpt = torch.load(path, map_location=device)
+    ckpt = torch.load(path, map_location=device, weights_only=False)
     if isinstance(ckpt, dict) and "state_dict" in ckpt:
         return ckpt["state_dict"]
     return ckpt
