@@ -9,7 +9,7 @@ from models.segmentation import DecoderBlock
 
 _FLAT_DIM = 512 * 7 * 7
 
-_CKPT_DIR        = "checkpoints"
+_CKPT_DIR        = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "checkpoints")
 _CKPT_CLASSIFIER = os.path.join(_CKPT_DIR, "classifier.pth")
 _CKPT_LOCALIZER  = os.path.join(_CKPT_DIR, "localizer.pth")
 _CKPT_UNET       = os.path.join(_CKPT_DIR, "unet.pth")
