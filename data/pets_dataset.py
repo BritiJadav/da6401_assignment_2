@@ -1,4 +1,5 @@
 import os
+import xml.etree.ElementTree as ET
 from typing import Dict
 
 import torch
@@ -8,7 +9,6 @@ import numpy as np
 import torchvision.transforms as T
 
 
-# Input size fixed per VGG paper
 _IMAGE_SIZE = 224
 
 
@@ -18,7 +18,7 @@ class OxfordIIITPetDataset(Dataset):
     Returns per sample:
         image : [3, 224, 224]  float32, ImageNet-normalised
         label : scalar         int64,   0-based breed index
-        bbox  : [4]            float32, (cx, cy, w, h) in PIXEL SPACE
+        bbox  : [4]            float32, (cx, cy, w, h) in pixel space (scaled to 224x224)
         mask  : [224, 224]     int64,   values in {0, 1, 2}
     """
 
@@ -29,36 +29,26 @@ class OxfordIIITPetDataset(Dataset):
         image_size: int = _IMAGE_SIZE,
         transform=None,
     ):
-        """
-        Args:
-            root_dir:   Root directory of the Oxford-IIIT Pet dataset.
-            split:      'train' or 'val'.
-            image_size: Resize target (square). Default 224 per VGG paper.
-            transform:  Optional torchvision transform applied to the PIL image.
-                        If None, ToTensor + ImageNet normalisation is used.
-        """
         self.root_dir   = root_dir
         self.split      = split
         self.image_size = image_size
         self.transform  = transform
 
-        # ---- Paths ----
         self.images_dir = os.path.join(root_dir, "images")
         self.masks_dir  = os.path.join(root_dir, "annotations", "trimaps")
+        self.xml_dir    = os.path.join(root_dir, "annotations", "xmls")
 
         split_file = "trainval.txt" if split == "train" else "test.txt"
         split_path = os.path.join(root_dir, "annotations", split_file)
 
-        # ---- Read file list ----
         self.samples = []
         with open(split_path, "r") as f:
             for line in f:
                 parts  = line.strip().split()
                 img_id = parts[0]
-                label  = int(parts[1]) - 1      # 0-based class index
+                label  = int(parts[1]) - 1
                 self.samples.append((img_id, label))
 
-        # ---- Default transform: ToTensor + ImageNet normalisation ----
         self._default_transform = T.Compose([
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406],
@@ -68,12 +58,46 @@ class OxfordIIITPetDataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
+    def _load_bbox(self, img_id: str, orig_w: int, orig_h: int):
+        """Read bbox from XML annotation and scale to image_size x image_size."""
+        xml_path = os.path.join(self.xml_dir, f"{img_id}.xml")
+        if not os.path.exists(xml_path):
+            return None
+
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+        obj  = root.find("object")
+        box  = obj.find("bndbox")
+
+        xmin = float(box.find("xmin").text)
+        ymin = float(box.find("ymin").text)
+        xmax = float(box.find("xmax").text)
+        ymax = float(box.find("ymax").text)
+
+        # Convert to centre format
+        cx = (xmin + xmax) / 2.0
+        cy = (ymin + ymax) / 2.0
+        w  = xmax - xmin
+        h  = ymax - ymin
+
+        # Scale to resized image space
+        scale_x = self.image_size / orig_w
+        scale_y = self.image_size / orig_h
+
+        cx = cx * scale_x
+        cy = cy * scale_y
+        w  = w  * scale_x
+        h  = h  * scale_y
+
+        return [cx, cy, w, h]
+
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         img_id, label = self.samples[idx]
 
         # ---- Load image ----
         img_path = os.path.join(self.images_dir, f"{img_id}.jpg")
         image    = Image.open(img_path).convert("RGB")
+        orig_w, orig_h = image.size  # PIL gives (width, height)
 
         # ---- Load segmentation mask ----
         mask_path = os.path.join(self.masks_dir, f"{img_id}.png")
@@ -90,30 +114,18 @@ class OxfordIIITPetDataset(Dataset):
         mask = torch.from_numpy(np.array(mask)).long()
         mask = mask - 1
 
-        # ---- Bounding box from mask — PIXEL SPACE (not normalised) ----
-        ys, xs = torch.where(mask > 0)
-
-        if len(xs) > 0 and len(ys) > 0:
-            x_min = xs.min().float()
-            x_max = xs.max().float()
-            y_min = ys.min().float()
-            y_max = ys.max().float()
-
-            x_center = (x_min + x_max) / 2.0
-            y_center = (y_min + y_max) / 2.0
-            width    = x_max - x_min
-            height   = y_max - y_min
+        # ---- Bounding box from XML annotation ----
+        bbox_raw = self._load_bbox(img_id, orig_w, orig_h)
+        if bbox_raw is not None:
+            bbox = torch.tensor(bbox_raw, dtype=torch.float32)
         else:
-            # Fallback for empty masks
-            x_center = torch.tensor(0.0)
-            y_center = torch.tensor(0.0)
-            width    = torch.tensor(0.0)
-            height   = torch.tensor(0.0)
-
-        # Pixel-space bbox — values in [0, image_size]
-        bbox = torch.tensor(
-            [x_center, y_center, width, height], dtype=torch.float32
-        )
+            # Fallback: full image box
+            bbox = torch.tensor([
+                self.image_size / 2.0,
+                self.image_size / 2.0,
+                float(self.image_size),
+                float(self.image_size),
+            ], dtype=torch.float32)
 
         # ---- Apply image transform ----
         if self.transform:
@@ -122,8 +134,8 @@ class OxfordIIITPetDataset(Dataset):
             image = self._default_transform(image)
 
         return {
-            "image": image,                          # [3, H, W]  float32
-            "label": torch.tensor(label),            # scalar     int64
-            "bbox":  bbox,                           # [4]        float32, pixel space
-            "mask":  mask,                           # [H, W]     int64, {0,1,2}
+            "image": image,
+            "label": torch.tensor(label),
+            "bbox":  bbox,
+            "mask":  mask,
         }

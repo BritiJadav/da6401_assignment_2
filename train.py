@@ -80,15 +80,17 @@ def train():
         seg_classes=3,
         in_channels=3,
         dropout_p=args.dropout_p,
-        load_ckpts=False,   # fresh training — do not load checkpoints
+        load_ckpts=False,
     ).to(device)
     print("Model created.")
 
     # ---- Losses ----
     cls_criterion = nn.CrossEntropyLoss()
-    mse_criterion = nn.MSELoss()                    # ← MSE for localization
-    iou_criterion = IoULoss(reduction="mean")       # ← IoU for localization
+    mse_criterion = nn.MSELoss()
+    iou_criterion = IoULoss(reduction="mean")
     seg_criterion = nn.CrossEntropyLoss()
+
+    LAMBDA_MSE = 0.01   # scale down MSE to match IoU's [0,1] range
 
     # ---- Optimizer ----
     optimizer = torch.optim.Adam([
@@ -128,7 +130,7 @@ def train():
 
             # Losses
             cls_loss = cls_criterion(cls_out, labels)
-            loc_loss = mse_criterion(loc_out, bboxes) + iou_criterion(loc_out, bboxes)  # ← MSE + IoU
+            loc_loss = LAMBDA_MSE * mse_criterion(loc_out, bboxes) + iou_criterion(loc_out, bboxes)
             seg_loss = seg_criterion(seg_out, masks)
             loss     = cls_loss + 10.0 * loc_loss + 5.0 * seg_loss
 
@@ -187,11 +189,10 @@ def train():
                 val_correct += (preds == labels).sum().item()
                 val_total   += labels.size(0)
 
-                # Validation loss — same combined loss as training
                 cls_loss = cls_criterion(outputs["classification"], labels)
-                loc_loss = (mse_criterion(outputs["localization"], bboxes)   # ← MSE + IoU
+                loc_loss = (LAMBDA_MSE * mse_criterion(outputs["localization"], bboxes)
                           + iou_criterion(outputs["localization"], bboxes))
-                seg_loss = seg_criterion(outputs["segmentation"],  masks)
+                seg_loss = seg_criterion(outputs["segmentation"], masks)
                 val_loss += (cls_loss + 10.0 * loc_loss + 5.0 * seg_loss).item()
 
         val_acc  = val_correct / val_total
@@ -215,7 +216,6 @@ def train():
     torch.save(model.state_dict(), args.save_path)
     print(f"Model saved to {args.save_path}")
 
-    # ---- W&B Finish ----
     wandb.finish()
 
 
