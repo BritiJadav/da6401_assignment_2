@@ -80,47 +80,43 @@ class MultiTaskPerceptionModel(nn.Module):
             self._load_checkpoints()
 
     def _load_checkpoints(self):
-        device = next(self.parameters()).device
-        encoder_state_dicts = []
-
+        # Load classifier checkpoint — also use its encoder
         if os.path.exists(_CKPT_CLASSIFIER):
             sd = _load_state_dict(_CKPT_CLASSIFIER)
-            enc_sd = {k[len("encoder."):]: v for k, v in sd.items() if k.startswith("encoder.")}
-            encoder_state_dicts.append(enc_sd)
-            cls_sd = {k[len("classifier."):]: v for k, v in sd.items() if k.startswith("classifier.")}
+
+            # Load encoder from classifier checkpoint ONLY (no averaging)
+            enc_sd = {k[len("encoder."):]: v
+                      for k, v in sd.items() if k.startswith("encoder.")}
+            self.encoder.load_state_dict(enc_sd)
+            print(f"[MultiTask] Shared encoder loaded from classifier checkpoint.")
+
+            cls_sd = {k[len("classifier."):]: v
+                      for k, v in sd.items() if k.startswith("classifier.")}
             self.classifier.load_state_dict(cls_sd)
             print(f"[MultiTask] Loaded classifier head from {_CKPT_CLASSIFIER}")
         else:
             print(f"[MultiTask] WARNING: {_CKPT_CLASSIFIER} not found.")
 
+        # Load localizer head only (no encoder)
         if os.path.exists(_CKPT_LOCALIZER):
             sd = _load_state_dict(_CKPT_LOCALIZER)
-            enc_sd = {k[len("encoder."):]: v for k, v in sd.items() if k.startswith("encoder.")}
-            encoder_state_dicts.append(enc_sd)
-            loc_sd = {k[len("regressor."):]: v for k, v in sd.items() if k.startswith("regressor.")}
+            loc_sd = {k[len("regressor."):]: v
+                      for k, v in sd.items() if k.startswith("regressor.")}
             self.localizer.load_state_dict(loc_sd)
             print(f"[MultiTask] Loaded localizer head from {_CKPT_LOCALIZER}")
         else:
             print(f"[MultiTask] WARNING: {_CKPT_LOCALIZER} not found.")
 
+        # Load UNet decoder only (no encoder)
         if os.path.exists(_CKPT_UNET):
             sd = _load_state_dict(_CKPT_UNET)
-            enc_sd = {k[len("encoder."):]: v for k, v in sd.items() if k.startswith("encoder.")}
-            encoder_state_dicts.append(enc_sd)
             for prefix in ("dec4", "dec3", "dec2", "dec1", "dec0", "seg_head"):
-                block_sd = {k[len(prefix) + 1:]: v for k, v in sd.items() if k.startswith(prefix + ".")}
+                block_sd = {k[len(prefix) + 1:]: v
+                            for k, v in sd.items() if k.startswith(prefix + ".")}
                 getattr(self, prefix).load_state_dict(block_sd)
             print(f"[MultiTask] Loaded UNet decoder from {_CKPT_UNET}")
         else:
             print(f"[MultiTask] WARNING: {_CKPT_UNET} not found.")
-
-        if encoder_state_dicts:
-            avg_enc_sd = {}
-            for key in encoder_state_dicts[0]:
-                stacked = torch.stack([sd[key].float() for sd in encoder_state_dicts], dim=0)
-                avg_enc_sd[key] = stacked.mean(dim=0)
-            self.encoder.load_state_dict(avg_enc_sd)
-            print(f"[MultiTask] Shared encoder initialised from {len(encoder_state_dicts)} checkpoint(s).")
 
     def forward(self, x: torch.Tensor) -> dict:
         bottleneck, features = self.encoder(x, return_features=True)
