@@ -15,7 +15,7 @@ _CKPT_LOCALIZER  = os.path.join(_CKPT_DIR, "localizer.pth")
 _CKPT_UNET       = os.path.join(_CKPT_DIR, "unet.pth")
 
 _DRIVE_ID_CLASSIFIER = "177Z83QbYUteiS6bgW6FdmQfCiYTGesvu"
-_DRIVE_ID_LOCALIZER  = "1mVFkwL0KEW-Eo4gd5Y7izVMR-ZYHa0_D"
+_DRIVE_ID_LOCALIZER  = "1UtVOim5EkNvKS9VKdvOMnN2a_XG7iI1c"
 _DRIVE_ID_UNET       = "1Rqkyv08xU8DyzAXke70uDFvXGxXnOEkS"
 
 
@@ -63,9 +63,15 @@ class MultiTaskPerceptionModel(nn.Module):
         )
 
         self.localizer = nn.Sequential(
-            nn.Linear(_FLAT_DIM, 512),
+            nn.Linear(_FLAT_DIM, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(512, 4),
+            nn.Dropout(0.5),
+            nn.Linear(4096, 1024),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(1024, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 4),
             nn.Sigmoid(),
         )
 

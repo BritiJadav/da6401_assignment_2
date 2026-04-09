@@ -8,7 +8,7 @@ from models.vgg11 import VGG11
 _FLAT_DIM            = 512 * 7 * 7
 _CKPT_DIR            = "checkpoints"
 _CKPT_LOCALIZER      = os.path.join(_CKPT_DIR, "localizer.pth")
-_DRIVE_ID_LOCALIZER  = "1mVFkwL0KEW-Eo4gd5Y7izVMR-ZYHa0_D"
+_DRIVE_ID_LOCALIZER  = "1UtVOim5EkNvKS9VKdvOMnN2a_XG7iI1c"
 
 
 class VGG11Localizer(nn.Module):
@@ -18,11 +18,16 @@ class VGG11Localizer(nn.Module):
         self.encoder    = VGG11(in_channels=in_channels)
         self.image_size = 224
 
-        # Matches checkpoint exactly: 25088 → 512 → 4 + Sigmoid
         self.regressor = nn.Sequential(
-            nn.Linear(_FLAT_DIM, 512),
+            nn.Linear(_FLAT_DIM, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(512, 4),
+            nn.Dropout(0.5),
+            nn.Linear(4096, 1024),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(1024, 256),
+            nn.ReLU(inplace=True),
+            nn.Linear(256, 4),
             nn.Sigmoid(),
         )
 
