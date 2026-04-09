@@ -1,8 +1,6 @@
-checkpoints/localizer.pth
 checkpoints/*.pth
-checkpoints/localizer.pth
-checkpoints/*.pth
-checkpoints/localizer.pth
-checkpoints/*.pth
-checkpoints/localizer.pth
-checkpoints/*.pth
+checkpoints/localizer_strong.pth
+checkpoints/unet_backup_keep.pth
+data/__pycache__/
+models/__pycache__/
+losses/__pycache__/
