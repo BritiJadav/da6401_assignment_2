@@ -87,22 +87,25 @@ class MultiTaskPerceptionModel(nn.Module):
             self._load_checkpoints()
 
     def _load_checkpoints(self):
-        # Load classifier checkpoint — also use its encoder
+        # Load classifier checkpoint — get classifier head and encoder
         if os.path.exists(_CKPT_CLASSIFIER):
             sd = _load_state_dict(_CKPT_CLASSIFIER)
-
-            # Load encoder from classifier checkpoint ONLY (no averaging)
-            enc_sd = {k[len("encoder."):]: v
-                      for k, v in sd.items() if k.startswith("encoder.")}
-            self.encoder.load_state_dict(enc_sd)
-            print(f"[MultiTask] Shared encoder loaded from classifier checkpoint.")
-
             cls_sd = {k[len("classifier."):]: v
                       for k, v in sd.items() if k.startswith("classifier.")}
             self.classifier.load_state_dict(cls_sd)
             print(f"[MultiTask] Loaded classifier head from {_CKPT_CLASSIFIER}")
         else:
             print(f"[MultiTask] WARNING: {_CKPT_CLASSIFIER} not found.")
+
+        # Load UNet encoder as shared encoder — decoder depends on it
+        if os.path.exists(_CKPT_UNET):
+            sd = _load_state_dict(_CKPT_UNET)
+            enc_sd = {k[len("encoder."):]: v
+                      for k, v in sd.items() if k.startswith("encoder.")}
+            self.encoder.load_state_dict(enc_sd)
+            print(f"[MultiTask] Shared encoder loaded from UNet checkpoint.")
+        else:
+            print(f"[MultiTask] WARNING: {_CKPT_UNET} not found.")
 
         # Load localizer head only (no encoder)
         if os.path.exists(_CKPT_LOCALIZER):
