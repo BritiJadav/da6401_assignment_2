@@ -50,7 +50,8 @@ class MultiTaskPerceptionModel(nn.Module):
     ):
         super().__init__()
 
-        self.encoder = VGG11Encoder(in_channels=in_channels)
+        self.encoder     = VGG11Encoder(in_channels=in_channels)  # for cls + loc
+        self.seg_encoder = VGG11Encoder(in_channels=in_channels)  # for segmentation
 
         self.classifier = nn.Sequential(
             nn.Linear(_FLAT_DIM, 4096),
@@ -87,25 +88,19 @@ class MultiTaskPerceptionModel(nn.Module):
             self._load_checkpoints()
 
     def _load_checkpoints(self):
-        # Load classifier checkpoint — get classifier head and encoder
+        # Load classifier checkpoint — encoder for cls/loc + classifier head
         if os.path.exists(_CKPT_CLASSIFIER):
             sd = _load_state_dict(_CKPT_CLASSIFIER)
+            enc_sd = {k[len("encoder."):]: v
+                      for k, v in sd.items() if k.startswith("encoder.")}
+            self.encoder.load_state_dict(enc_sd)
+            print(f"[MultiTask] cls/loc encoder loaded from classifier checkpoint.")
             cls_sd = {k[len("classifier."):]: v
                       for k, v in sd.items() if k.startswith("classifier.")}
             self.classifier.load_state_dict(cls_sd)
             print(f"[MultiTask] Loaded classifier head from {_CKPT_CLASSIFIER}")
         else:
             print(f"[MultiTask] WARNING: {_CKPT_CLASSIFIER} not found.")
-
-        # Load UNet encoder as shared encoder — decoder depends on it
-        if os.path.exists(_CKPT_UNET):
-            sd = _load_state_dict(_CKPT_UNET)
-            enc_sd = {k[len("encoder."):]: v
-                      for k, v in sd.items() if k.startswith("encoder.")}
-            self.encoder.load_state_dict(enc_sd)
-            print(f"[MultiTask] Shared encoder loaded from UNet checkpoint.")
-        else:
-            print(f"[MultiTask] WARNING: {_CKPT_UNET} not found.")
 
         # Load localizer head only (no encoder)
         if os.path.exists(_CKPT_LOCALIZER):
@@ -117,9 +112,13 @@ class MultiTaskPerceptionModel(nn.Module):
         else:
             print(f"[MultiTask] WARNING: {_CKPT_LOCALIZER} not found.")
 
-        # Load UNet decoder only (no encoder)
+        # Load UNet encoder into seg_encoder + decoder
         if os.path.exists(_CKPT_UNET):
             sd = _load_state_dict(_CKPT_UNET)
+            enc_sd = {k[len("encoder."):]: v
+                      for k, v in sd.items() if k.startswith("encoder.")}
+            self.seg_encoder.load_state_dict(enc_sd)
+            print(f"[MultiTask] seg_encoder loaded from UNet checkpoint.")
             for prefix in ("dec4", "dec3", "dec2", "dec1", "dec0", "seg_head"):
                 block_sd = {k[len(prefix) + 1:]: v
                             for k, v in sd.items() if k.startswith(prefix + ".")}
@@ -129,20 +128,21 @@ class MultiTaskPerceptionModel(nn.Module):
             print(f"[MultiTask] WARNING: {_CKPT_UNET} not found.")
 
     def forward(self, x: torch.Tensor) -> dict:
+        # cls + loc — use classifier encoder
         bottleneck, features = self.encoder(x, return_features=True)
-
-        f1 = features["block1"]
-        f2 = features["block2"]
-        f3 = features["block3"]
-        f4 = features["block4"]
-        f5 = features["block5"]
-
-        flat = torch.flatten(bottleneck, 1)
-
+        flat    = torch.flatten(bottleneck, 1)
         cls_out = self.classifier(flat)
         loc_out = self.localizer(flat) * 224.0
 
-        d = self.dec4(bottleneck, f5)
+        # seg — use UNet encoder
+        seg_bottleneck, seg_features = self.seg_encoder(x, return_features=True)
+        f1 = seg_features["block1"]
+        f2 = seg_features["block2"]
+        f3 = seg_features["block3"]
+        f4 = seg_features["block4"]
+        f5 = seg_features["block5"]
+
+        d = self.dec4(seg_bottleneck, f5)
         d = self.dec3(d, f4)
         d = self.dec2(d, f3)
         d = self.dec1(d, f2)
