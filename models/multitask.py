@@ -66,6 +66,7 @@ class MultiTaskPerceptionModel(nn.Module):
             nn.Linear(_FLAT_DIM, 512),
             nn.ReLU(inplace=True),
             nn.Linear(512, 4),
+            nn.Sigmoid(),
         )
 
         self.dec4 = DecoderBlock(512, 512, 512)
@@ -130,7 +131,7 @@ class MultiTaskPerceptionModel(nn.Module):
         flat = torch.flatten(bottleneck, 1)
 
         cls_out = self.classifier(flat)
-        loc_out = self.localizer(flat)
+        loc_out = self.localizer(flat) * 224.0
 
         d = self.dec4(bottleneck, f5)
         d = self.dec3(d, f4)
