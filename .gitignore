@@ -1,2 +1,4 @@
 checkpoints/localizer.pth
 checkpoints/*.pth
+checkpoints/localizer.pth
+checkpoints/*.pth
