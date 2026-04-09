@@ -9,7 +9,7 @@ _FLAT_DIM = 512 * 7 * 7
 
 _CKPT_DIR           = "checkpoints"
 _CKPT_LOCALIZER     = os.path.join(_CKPT_DIR, "localizer.pth")
-_DRIVE_ID_LOCALIZER = "1Tw2n9JxTTGRSPTbZaE4NIaSowg360jMU"
+_DRIVE_ID_LOCALIZER = "1mVFkwL0KEW-Eo4gd5Y7izVMR-ZYHa0_D"
 
 
 class VGG11Localizer(nn.Module):
