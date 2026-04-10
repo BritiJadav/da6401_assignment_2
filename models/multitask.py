@@ -11,11 +11,11 @@ _FLAT_DIM = 512 * 7 * 7
 
 _CKPT_DIR        = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "checkpoints")
 _CKPT_CLASSIFIER = os.path.join(_CKPT_DIR, "classifier.pth")
-_CKPT_LOCALIZER  = os.path.join(_CKPT_DIR, "localizer_v2.pth")
+_CKPT_LOCALIZER  = os.path.join(_CKPT_DIR, "localizer.pth")
 _CKPT_UNET       = os.path.join(_CKPT_DIR, "unet.pth")
 
 _DRIVE_ID_CLASSIFIER = "177Z83QbYUteiS6bgW6FdmQfCiYTGesvu"
-_DRIVE_ID_LOCALIZER  = "1UtVOim5EkNvKS9VKdvOMnN2a_XG7iI1c"
+_DRIVE_ID_LOCALIZER  = "1yS-6c4Bh6QAYEbF9O9-9FG36mCdtOHt_"
 _DRIVE_ID_UNET       = "1Rqkyv08xU8DyzAXke70uDFvXGxXnOEkS"
 
 
