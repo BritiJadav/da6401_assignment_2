@@ -15,7 +15,7 @@ _CKPT_LOCALIZER  = os.path.join(_CKPT_DIR, "localizer.pth")
 _CKPT_UNET       = os.path.join(_CKPT_DIR, "unet.pth")
 
 _DRIVE_ID_CLASSIFIER = "177Z83QbYUteiS6bgW6FdmQfCiYTGesvu"
-_DRIVE_ID_LOCALIZER  = "1yS-6c4Bh6QAYEbF9O9-9FG36mCdtOHt_"
+_DRIVE_ID_LOCALIZER  = "15UfKjnBeTDrGLMWpToSDzN3zIlAola9S"
 _DRIVE_ID_UNET       = "1Rqkyv08xU8DyzAXke70uDFvXGxXnOEkS"
 
 

@@ -8,7 +8,7 @@ from models.vgg11 import VGG11
 _FLAT_DIM            = 512 * 7 * 7
 _CKPT_DIR            = "checkpoints"
 _CKPT_LOCALIZER      = os.path.join(_CKPT_DIR, "localizer.pth")
-_DRIVE_ID_LOCALIZER  = "1yS-6c4Bh6QAYEbF9O9-9FG36mCdtOHt_"
+_DRIVE_ID_LOCALIZER  = "15UfKjnBeTDrGLMWpToSDzN3zIlAola9S"
 
 
 class VGG11Localizer(nn.Module):
