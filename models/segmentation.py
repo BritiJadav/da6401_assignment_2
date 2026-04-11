@@ -76,9 +76,9 @@ class VGG11UNet(nn.Module):
                               weights_only=False)
             sd = ckpt["state_dict"] if isinstance(ckpt, dict) and "state_dict" in ckpt else ckpt
             self.load_state_dict(sd)
-            print(f"[UNet] ✅ Loaded checkpoint from {_CKPT_UNET}")
+            print(f"[UNet] Loaded checkpoint from {_CKPT_UNET}")
         else:
-            print(f"[UNet] ⚠️ {_CKPT_UNET} not found.")
+            print(f"[UNet] {_CKPT_UNET} not found.")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         bottleneck, features = self.encoder(x, return_features=True)
