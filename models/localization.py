@@ -46,9 +46,9 @@ class VGG11Localizer(nn.Module):
                               weights_only=False)
             sd = ckpt["state_dict"] if isinstance(ckpt, dict) and "state_dict" in ckpt else ckpt
             self.load_state_dict(sd)
-            print(f"[Localizer] ✅ Loaded checkpoint from {_CKPT_LOCALIZER}")
+            print(f"[Localizer] Loaded checkpoint from {_CKPT_LOCALIZER}")
         else:
-            print(f"[Localizer] ⚠️ {_CKPT_LOCALIZER} not found.")
+            print(f"[Localizer] {_CKPT_LOCALIZER} not found.")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.encoder(x)
