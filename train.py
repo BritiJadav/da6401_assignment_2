@@ -28,12 +28,12 @@ def train():
     print("Training started...")
     args = get_args()
 
-    # ---- Device ----
+    # Device
     use_cuda = args.device == "cuda" and torch.cuda.is_available()
     device   = torch.device("cuda" if use_cuda else "cpu")
     print(f"Using device: {device}")
 
-    # ---- W&B Initialization ----
+    # W&B Initialization
     wandb.init(
         project="da6401-assignment-2",
         name=args.run_name,
@@ -45,7 +45,7 @@ def train():
         }
     )
 
-    # ---- Dataset ----
+    # Dataset
     train_dataset = OxfordIIITPetDataset(
         root_dir=args.data_dir,
         split="train",
@@ -74,7 +74,7 @@ def train():
     )
     print(f"Train batches: {len(train_loader)} | Val batches: {len(val_loader)}")
 
-    # ---- Model ----
+    # Model
     model = MultiTaskPerceptionModel(
         num_breeds=37,
         seg_classes=3,
@@ -84,7 +84,7 @@ def train():
     ).to(device)
     print("Model created.")
 
-    # ---- Losses ----
+    # Losses
     cls_criterion = nn.CrossEntropyLoss()
     mse_criterion = nn.MSELoss()
     iou_criterion = IoULoss(reduction="mean")
@@ -92,7 +92,7 @@ def train():
 
     LAMBDA_MSE = 0.01   # scale down MSE to match IoU's [0,1] range
 
-    # ---- Optimizer ----
+    # Optimizer
     optimizer = torch.optim.Adam([
         {"params": model.classifier.parameters(), "lr": 1e-4},
         {"params": model.encoder.parameters(),    "lr": 1e-4},
@@ -105,10 +105,10 @@ def train():
         {"params": model.seg_head.parameters(),   "lr": 1e-3},
     ])
 
-    # ---- Scheduler ----
+    # Scheduler
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
 
-    # ---- Training Loop ----
+    # Training Loop
     for epoch in range(args.epochs):
         model.train()
         total_loss     = 0.0
@@ -170,7 +170,7 @@ def train():
 
         scheduler.step()
 
-        # ---- Validation ----
+        # Validation
         model.eval()
         val_correct = 0
         val_total   = 0
@@ -200,7 +200,7 @@ def train():
         print(f"  Val Classification Accuracy: {val_acc:.4f}")
         print(f"  Val Loss: {val_loss:.4f}")
 
-        # ---- W&B Logging ----
+        # W&B Logging
         wandb.log({
             "epoch":            epoch + 1,
             "train/total_loss": avg_total,
@@ -212,7 +212,7 @@ def train():
             "learning_rate":    scheduler.get_last_lr()[0],
         })
 
-    # ---- Save Model ----
+    # Save Model
     torch.save(model.state_dict(), args.save_path)
     print(f"Model saved to {args.save_path}")
 
