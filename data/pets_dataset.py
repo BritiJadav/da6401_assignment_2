@@ -94,27 +94,27 @@ class OxfordIIITPetDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         img_id, label = self.samples[idx]
 
-        # ---- Load image ----
+        # Load image
         img_path = os.path.join(self.images_dir, f"{img_id}.jpg")
         image    = Image.open(img_path).convert("RGB")
         orig_w, orig_h = image.size  # PIL gives (width, height)
 
-        # ---- Load segmentation mask ----
+        # Load segmentation mask 
         mask_path = os.path.join(self.masks_dir, f"{img_id}.png")
         mask      = Image.open(mask_path)
 
-        # ---- Resize ----
+        # Resize
         image = T.Resize((self.image_size, self.image_size))(image)
         mask  = T.Resize(
             (self.image_size, self.image_size),
             interpolation=T.InterpolationMode.NEAREST,
         )(mask)
 
-        # ---- Mask → tensor, shift {1,2,3} → {0,1,2} ----
+        # Mask → tensor, shift {1,2,3} → {0,1,2}
         mask = torch.from_numpy(np.array(mask)).long()
         mask = mask - 1
 
-        # ---- Bounding box from XML annotation ----
+        # Bounding box from XML annotation
         bbox_raw = self._load_bbox(img_id, orig_w, orig_h)
         if bbox_raw is not None:
             bbox = torch.tensor(bbox_raw, dtype=torch.float32)
@@ -127,7 +127,7 @@ class OxfordIIITPetDataset(Dataset):
                 float(self.image_size),
             ], dtype=torch.float32)
 
-        # ---- Apply image transform ----
+        # Apply image transform
         if self.transform:
             image = self.transform(image)
         else:
