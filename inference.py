@@ -65,7 +65,7 @@ def evaluate():
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    # ---- Dataset ----
+    # Dataset
     test_dataset = OxfordIIITPetDataset(
         root_dir=args.data_dir,
         split="val"  # or "test" depending on dataset
@@ -78,12 +78,12 @@ def evaluate():
         num_workers=2
     )
 
-    # ---- Model ----
+    # Model
     model = MultiTaskPerceptionModel().to(device)
     model.load_state_dict(torch.load(args.model_path, map_location=device))
     model.eval()
 
-    # ---- Metrics ----
+    # Metrics
     cls_correct = 0
     cls_total = 0
 
@@ -103,21 +103,21 @@ def evaluate():
             pred_boxes = outputs["localization"]
             seg_logits = outputs["segmentation"]
 
-            # ---- Classification Accuracy ----
+            # Classification Accuracy
             preds = torch.argmax(cls_logits, dim=1)
             cls_correct += (preds == labels).sum().item()
             cls_total += labels.size(0)
 
-            # ---- IoU ----
+            # IoU
             iou = compute_iou(pred_boxes, bboxes)
             iou_scores.extend(iou.cpu().tolist())
 
-            # ---- Segmentation Accuracy ----
+            # Segmentation Accuracy
             seg_preds = torch.argmax(seg_logits, dim=1)
             acc = compute_segmentation_accuracy(seg_preds, masks)
             seg_accs.append(acc.item())
 
-    # ---- Final Metrics ----
+    # Final Metrics
     cls_acc = cls_correct / cls_total
     mean_iou = sum(iou_scores) / len(iou_scores)
     mean_seg_acc = sum(seg_accs) / len(seg_accs)
