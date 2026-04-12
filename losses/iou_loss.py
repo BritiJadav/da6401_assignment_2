@@ -40,7 +40,7 @@ class IoULoss(nn.Module):
             Scalar loss in [0, 1].
         """
 
-        # ---- (cx, cy, w, h) → (x1, y1, x2, y2) ----
+        # (cx, cy, w, h) → (x1, y1, x2, y2)
         px, py, pw, ph = (pred_boxes[:, 0], pred_boxes[:, 1],
                           pred_boxes[:, 2], pred_boxes[:, 3])
         p_x1 = px - pw / 2
@@ -55,7 +55,7 @@ class IoULoss(nn.Module):
         t_x2 = tx + tw / 2
         t_y2 = ty + th / 2
 
-        # ---- Intersection ----
+        # Intersection
         inter_x1 = torch.max(p_x1, t_x1)
         inter_y1 = torch.max(p_y1, t_y1)
         inter_x2 = torch.min(p_x2, t_x2)
@@ -65,14 +65,14 @@ class IoULoss(nn.Module):
         inter_h    = torch.clamp(inter_y2 - inter_y1, min=0)
         inter_area = inter_w * inter_h
 
-        # ---- Areas (clamped so negative w/h don't break gradients) ----
+        # Areas (clamped so negative w/h don't break gradients)
         pred_area   = torch.clamp(pw, min=0) * torch.clamp(ph, min=0)
         target_area = torch.clamp(tw, min=0) * torch.clamp(th, min=0)
 
-        # ---- Union ----
+        # Union
         union_area = pred_area + target_area - inter_area + self.eps
 
-        # ---- IoU  →  loss in [0, 1] ----
+        # IoU  →  loss in [0, 1]
         iou  = inter_area / union_area          # ∈ [0, 1]
         loss = 1.0 - iou                        # ∈ [0, 1]
 
